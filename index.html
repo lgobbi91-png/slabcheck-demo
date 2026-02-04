@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SlabCheck - OCR Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #0f172a; color: white; text-align: center; margin: 0; overflow: hidden; }
+        #camera { width: 100%; height: 60vh; object-fit: cover; }
+        #overlay { position: absolute; top: 20%; left: 10%; width: 80%; height: 20%; border: 2px solid #38bdf8; border-radius: 10px; box-shadow: 0 0 15px #38bdf8; pointer-events: none; }
+        #result-box { padding: 20px; font-size: 1.2rem; height: 40vh; }
+        .safe { background: #22c55e; color: white; }
+        .stolen { background: #ef4444; color: white; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <video id="camera" autoplay playsinline></video>
+    <div id="overlay"></div>
+    
+    <div id="result-box">
+        <p id="status">Punta il seriale nel riquadro...</p>
+        <h2 id="detected-text">---</h2>
+    </div>
+
+    <script>
+        const video = document.getElementById('camera');
+        const statusText = document.getElementById('status');
+        const detectedDisplay = document.getElementById('detected-text');
+        const resultBox = document.getElementById('result-box');
+
+        // DATABASE DI PROVA
+        const BLACKLIST = ["47281093", "12345678"];
+
+        // Avvio Fotocamera
+        async function startCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            video.srcObject = stream;
+            processFrame();
+        }
+
+        // Elaborazione OCR ogni 2 secondi per non sovraccaricare il cell
+        async function processFrame() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+
+            statusText.innerText = "Scansione in corso...";
+            
+            const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
+            
+            // Pulizia testo: cerchiamo solo sequenze di 8 numeri
+            const match = text.match(/\d{8}/);
+            
+            if (match) {
+                const serial = match[0];
+                detectedDisplay.innerText = "Seriale: " + serial;
+                checkDatabase(serial);
+            } else {
+                statusText.innerText = "Nessun seriale rilevato...";
+            }
+
+            setTimeout(processFrame, 2000);
+        }
+
+        function checkDatabase(serial) {
+            if (BLACKLIST.includes(serial)) {
+                statusText.innerText = "🚨 ATTENZIONE: CARTA RUBATA!";
+                resultBox.className = "stolen";
+                // Vibrazione (se supportata)
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            } else {
+                statusText.innerText = "✅ Seriale Pulito";
+                resultBox.className = "safe";
+            }
+        }
+
+        startCamera();
+    </script>
+</body>
+</html>
