@@ -3,22 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SlabCheck - Photo OCR</title>
+    <title>SlabCheck - Multicase OCR</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         body { font-family: sans-serif; background: #0f172a; color: white; text-align: center; margin: 0; }
-        #camera-container { position: relative; width: 100%; height: 45vh; background: black; overflow: hidden; }
+        #camera-container { position: relative; width: 100%; height: 40vh; background: black; }
         #camera { width: 100%; height: 100%; object-fit: cover; }
         #overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70%; height: 15%; border: 2px solid #38bdf8; border-radius: 8px; box-shadow: 0 0 20px rgba(56, 189, 248, 0.5); }
         #controls { padding: 15px; background: #1e293b; display: flex; flex-direction: column; gap: 10px; align-items: center; }
-        button { padding: 15px 25px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; width: 80%; }
+        button { padding: 15px 25px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; width: 85%; }
         .btn-scan { background: #38bdf8; color: white; font-size: 1.1rem; }
         .btn-check { background: #64748b; color: white; }
-        input { padding: 12px; border-radius: 8px; border: 1px solid #475569; width: 75%; background: #0f172a; color: white; text-align: center; }
-        #result-box { padding: 25px; margin: 15px; border-radius: 15px; background: #334155; transition: 0.5s; }
-        .stolen { background: #dc2626 !important; }
+        input { padding: 12px; border-radius: 8px; border: 1px solid #475569; width: 80%; background: #0f172a; color: white; text-align: center; font-size: 1rem; }
+        #result-box { padding: 25px; margin: 15px; border-radius: 15px; background: #334155; transition: 0.5s; min-height: 100px; }
+        .stolen { background: #dc2626 !important; animation: shake 0.5s; }
         .safe { background: #16a34a !important; }
-        #snapshot { display: none; } /* Canvas nascosto per il processing */
+        @keyframes shake { 0%, 100% {transform: translateX(0);} 25% {transform: translateX(-10px);} 75% {transform: translateX(10px);} }
+        #snapshot { display: none; }
     </style>
 </head>
 <body>
@@ -30,14 +31,13 @@
     
     <div id="controls">
         <button class="btn-scan" onclick="takeSnapshot()">📷 SCATTA E ANALIZZA</button>
-        <hr style="width: 80%; border: 0.5px solid #475569;">
-        <input type="text" id="manual-serial" placeholder="Inserimento manuale...">
+        <input type="text" id="manual-serial" placeholder="Inserisci seriale manuale...">
         <button class="btn-check" onclick="checkManual()">VERIFICA MANUALE</button>
     </div>
     
     <div id="result-box">
-        <h3 id="status">Pronto al controllo</h3>
-        <p id="details">Inquadra il seriale e scatta una foto.</p>
+        <h3 id="status">Pronto</h3>
+        <p id="details">Riconoscimento automatico PSA, BGS, GRAAD.</p>
     </div>
 
     <canvas id="snapshot"></canvas>
@@ -48,56 +48,77 @@
         const statusText = document.getElementById('status');
         const detailsText = document.getElementById('details');
         const resultBox = document.getElementById('result-box');
-        const BLACKLIST = ["47281093", "12345678"];
+        const manualInput = document.getElementById('manual-serial');
 
-        // Avvio camera
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", focusMode: "continuous" } })
+        const BLACKLIST = [
+            { serial: "47281093", case: "PSA", note: "Rubata a Lucca Comics" },
+            { serial: "0012345678", case: "BGS", note: "Smarrita spedizione FedEx" },
+            { serial: "GR12345", case: "GRAAD", note: "Segnalata su Facebook" }
+        ];
+
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
             .then(stream => { video.srcObject = stream; })
-            .catch(err => { statusText.innerText = "Errore Camera: " + err; });
+            .catch(err => { statusText.innerText = "Camera non attiva"; });
 
         async function takeSnapshot() {
-            statusText.innerText = "Analisi in corso...";
+            statusText.innerText = "Analisi Multicase...";
             const ctx = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            
-            // Disegna il frame del video sul canvas
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            // Esegui l'OCR sulla foto scattata
             try {
                 const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
-                const match = text.match(/\d{7,10}/); // Cerca sequenze numeriche
                 
-                if (match) {
-                    const serialFound = match[0];
-                    checkDatabase(serialFound);
-                } else {
-                    statusText.innerText = "❌ Non letto bene";
-                    detailsText.innerText = "Riprova, assicurati che il numero sia nel riquadro.";
-                    resultBox.className = "";
+                let foundSerial = null;
+                let detectedCase = "Sconosciuta";
+
+                // Regex Multicase
+                if (text.match(/\b\d{8}\b/)) { 
+                    foundSerial = text.match(/\b\d{8}\b/)[0]; 
+                    detectedCase = "PSA"; 
                 }
-            } catch (e) {
-                statusText.innerText = "Errore OCR";
-            }
+                else if (text.match(/\b\d{10}\b/)) { 
+                    foundSerial = text.match(/\b\d{10}\b/)[0]; 
+                    detectedCase = "BGS"; 
+                }
+                else if (text.match(/GR\d{5}/)) { 
+                    foundSerial = text.match(/GR\d{5}/)[0]; 
+                    detectedCase = "GRAAD"; 
+                }
+
+                if (foundSerial) {
+                    checkDatabase(foundSerial, detectedCase);
+                } else {
+                    statusText.innerText = "❌ Non riconosciuto";
+                    detailsText.innerText = "Prova ad avvicinarti o usa l'inserimento manuale.";
+                }
+            } catch (e) { statusText.innerText = "Errore OCR"; }
         }
 
-        function checkDatabase(serial) {
-            const cleanSerial = serial.trim();
-            if (BLACKLIST.includes(cleanSerial)) {
-                statusText.innerText = "🚨 RUBATA!";
-                detailsText.innerText = "Il seriale " + cleanSerial + " è segnalato!";
+        function checkDatabase(serial, cardCase) {
+            const match = BLACKLIST.find(item => item.serial === serial);
+            if (match) {
+                statusText.innerText = `🚨 ${match.case} RUBATA!`;
+                detailsText.innerText = `Seriale: ${serial}\nNota: ${match.note}`;
                 resultBox.className = "stolen";
             } else {
-                statusText.innerText = "✅ SICURA";
-                detailsText.innerText = "Nessuna segnalazione per: " + cleanSerial;
+                statusText.innerText = `✅ ${cardCase} SICURA`;
+                detailsText.innerText = `Il seriale ${serial} è pulito.`;
                 resultBox.className = "safe";
             }
         }
 
         function checkManual() {
-            const val = document.getElementById('manual-serial').value;
-            if (val) checkDatabase(val);
+            const val = manualInput.value.trim();
+            if (val) {
+                // Autodetect case per inserimento manuale
+                let type = "Manuale";
+                if (val.length === 8) type = "PSA";
+                if (val.length === 10) type = "BGS";
+                if (val.startsWith("GR")) type = "GRAAD";
+                checkDatabase(val, type);
+            }
         }
     </script>
 </body>
