@@ -3,114 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SlabCheck - Prototipo Finale</title>
+    <title>SlabCheck - Community Chat</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        :root {
-            --bg: #0f172a;
-            --card: #1e293b;
-            --accent: #38bdf8;
-            --red: #dc2626;
-            --green: #16a34a;
-            --orange: #f59e0b;
-        }
-
-        body { 
-            font-family: 'Segoe UI', system-ui, sans-serif; 
-            background: var(--bg); 
-            color: white; 
-            text-align: center; 
-            margin: 0; 
-            padding-bottom: 40px;
-        }
-
-        /* Fotocamera e Mirino */
-        #camera-container { 
-            position: relative; 
-            width: 100%; 
-            height: 40vh; 
-            background: black; 
-            overflow: hidden;
-            border-bottom: 2px solid var(--accent);
-        }
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --red: #dc2626; --green: #16a34a; --orange: #f59e0b; }
+        body { font-family: sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; overflow-x: hidden; }
+        
+        /* Camera */
+        #camera-container { position: relative; width: 100%; height: 25vh; background: black; border-bottom: 2px solid var(--accent); }
         #camera { width: 100%; height: 100%; object-fit: cover; }
-        #overlay { 
-            position: absolute; top: 50%; left: 50%; 
-            transform: translate(-50%, -50%); 
-            width: 75%; height: 18%; 
-            border: 2px dashed var(--accent); 
-            border-radius: 12px; 
-            box-shadow: 0 0 0 1000px rgba(0,0,0,0.5);
-            pointer-events: none; 
-        }
+        
+        .panel { padding: 15px; background: var(--card); margin: 10px; border-radius: 12px; border: 1px solid #334155; }
+        input { padding: 12px; border-radius: 8px; border: 1px solid #475569; width: 80%; background: #020617; color: white; margin-bottom: 10px; }
+        button { padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; width: 90%; margin-bottom: 5px; }
+        
+        .btn-scan { background: var(--accent); color: #000; }
+        .btn-chat { background: var(--orange); color: white; display: none; }
 
-        /* Controlli */
-        #controls { padding: 20px; display: flex; flex-direction: column; gap: 12px; align-items: center; }
-        input { 
-            padding: 14px; border-radius: 10px; border: 1px solid #475569; 
-            width: 85%; background: #020617; color: white; text-align: center; font-size: 1rem;
-        }
-        button { 
-            padding: 14px; border-radius: 10px; border: none; 
-            font-weight: bold; cursor: pointer; width: 90%; 
-            transition: transform 0.1s; 
-        }
-        button:active { transform: scale(0.98); }
-        .btn-scan { background: var(--accent); color: #000; font-size: 1.1rem; }
-        .btn-manual { background: #475569; color: white; }
-        .btn-report { background: var(--orange); color: white; display: none; margin-top: 10px; }
+        #result-box { padding: 20px; margin: 10px; border-radius: 12px; transition: 0.4s; background: #334155; }
+        .stolen { background: var(--red) !important; }
+        .safe { background: var(--green) !important; }
 
-        /* Risultati */
-        #result-box { 
-            padding: 25px; margin: 15px; border-radius: 16px; 
-            background: var(--card); transition: all 0.4s ease; 
-            border: 1px solid #334155;
-        }
-        .stolen { background: var(--red) !important; border-color: #f87171 !important; animation: shake 0.5s; }
-        .safe { background: var(--green) !important; border-color: #4ade80 !important; }
+        /* Chat System */
+        #chat-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 100; padding: 20px; box-sizing: border-box; }
+        #chat-window { height: 60vh; overflow-y: auto; background: #020617; border-radius: 12px; padding: 15px; margin-bottom: 15px; text-align: left; }
+        .msg { margin-bottom: 10px; padding: 8px 12px; border-radius: 8px; max-width: 80%; font-size: 0.9rem; }
+        .msg.me { background: var(--accent); color: black; align-self: flex-end; margin-left: auto; }
+        .msg.owner { background: #334155; color: white; }
 
-        /* Lista Segnalazioni */
-        #report-list-container { 
-            margin: 20px; text-align: left; background: var(--card); 
-            padding: 20px; border-radius: 16px; border: 1px solid #334155;
-        }
-        .report-item { 
-            font-size: 0.85rem; border-bottom: 1px solid #334155; 
-            padding: 10px 0; display: flex; justify-content: space-between;
-        }
-        .report-item b { color: #f87171; }
-
-        @keyframes shake { 0%, 100% {transform: translateX(0);} 25% {transform: translateX(-8px);} 75% {transform: translateX(8px);} }
-        #snapshot { display: none; }
+        #victim-form { display: none; border: 1px solid var(--red); padding: 15px; margin: 10px; border-radius: 12px; }
     </style>
 </head>
 <body>
 
     <div id="camera-container">
         <video id="camera" autoplay playsinline></video>
-        <div id="overlay"></div>
     </div>
     
-    <div id="controls">
-        <button class="btn-scan" onclick="takeSnapshot()">📷 SCATTA E ANALIZZA</button>
-        <input type="text" id="manual-serial" placeholder="Inserisci seriale manuale...">
-        <button class="btn-manual" onclick="checkManual()">VERIFICA MANUALE</button>
-        <button id="btn-report" class="btn-report" onclick="submitReport()">⚠️ SEGNALA AVVISTAMENTO</button>
+    <div class="panel">
+        <button class="btn-scan" onclick="takeSnapshot()">📷 SCANSIONA CARTA</button>
+        <input type="text" id="manual-serial" placeholder="Seriale manuale...">
+        <button onclick="checkManual()" style="background:#475569; color:white;">CONTROLLA</button>
+        <button style="background:none; color:var(--red); font-size:0.8rem; border:1px solid var(--red);" onclick="toggleVictimForm()">Segnala furto</button>
+    </div>
+
+    <div id="victim-form">
+        <h4 style="color:var(--red); margin:0 0 10px 0;">Segnala la tua carta</h4>
+        <input type="text" id="v-serial" placeholder="Seriale rubato">
+        <button onclick="addStolenCard()" style="background:var(--red); color:white;">PUBBLICA</button>
     </div>
     
     <div id="result-box">
-        <h2 id="status" style="margin:0;">SlabCheck</h2>
-        <p id="details" style="opacity: 0.8; margin-top: 5px;">Pronto per l'analisi</p>
+        <h3 id="status" style="margin:0;">SlabCheck</h3>
+        <p id="details" style="font-size:0.8rem;">Pronto</p>
+        <button id="btn-open-chat" class="btn-chat" onclick="openChat()">💬 CONTATTA PROPRIETARIO</button>
     </div>
 
-    <div id="report-list-container">
-        <h3 style="margin-top:0; font-size:1rem; color:var(--accent);">📋 REGISTRO TEMPORANEO</h3>
-        <div id="report-list">
-            <p style="font-size:0.8rem; color:#64748b;">Nessuna segnalazione in questa sessione.</p>
+    <div id="chat-overlay">
+        <h3 id="chat-title" style="color:var(--accent);">Chat con Proprietario</h3>
+        <div id="chat-window">
+            <div class="msg owner">Sistema: Sei in contatto anonimo con il proprietario della carta segnalata.</div>
         </div>
+        <input type="text" id="chat-input" placeholder="Scrivi un messaggio...">
+        <button onclick="sendMessage()" style="background:var(--accent); color:black;">INVIA</button>
+        <button onclick="closeChat()" style="background:none; color:white; margin-top:10px;">Chiudi Chat</button>
     </div>
 
-    <canvas id="snapshot"></canvas>
+    <canvas id="snapshot" style="display:none;"></canvas>
 
     <script>
         const video = document.getElementById('camera');
@@ -118,94 +77,84 @@
         const statusText = document.getElementById('status');
         const detailsText = document.getElementById('details');
         const resultBox = document.getElementById('result-box');
-        const btnReport = document.getElementById('btn-report');
-        const reportList = document.getElementById('report-list');
-        const manualInput = document.getElementById('manual-serial');
+        const btnChat = document.getElementById('btn-open-chat');
+        const chatWindow = document.getElementById('chat-window');
 
-        // DATABASE DI TEST
-        const BLACKLIST = [
-            { serial: "47281093", case: "PSA", note: "Rubata a Lucca Comics" },
-            { serial: "0012345678", case: "BGS", note: "Pacco smarrito" },
-            { serial: "GR12345", case: "GRAAD", note: "Segnalata su FB" }
+        let BLACKLIST = [
+            { serial: "47281093", note: "Rubata a Lucca Comics" }
         ];
 
-        let lastDetectedSerial = "";
-        let lastDetectedCase = "";
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(s => video.srcObject = s);
 
-        // Avvio camera
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-            .then(stream => { video.srcObject = stream; })
-            .catch(err => { statusText.innerText = "Camera Off"; });
-
-        async function takeSnapshot() {
-            statusText.innerText = "Analisi...";
-            btnReport.style.display = "none";
-            const ctx = canvas.getContext('2d');
-            canvas.width = video.videoWidth; 
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0);
-            
-            try {
-                const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
-                
-                let foundSerial = null;
-                let detectedCase = "Sconosciuta";
-
-                // Logica Multicase
-                if (text.match(/\b\d{8}\b/)) { foundSerial = text.match(/\b\d{8}\b/)[0]; detectedCase = "PSA"; }
-                else if (text.match(/\b\d{10}\b/)) { foundSerial = text.match(/\b\d{10}\b/)[0]; detectedCase = "BGS"; }
-                else if (text.match(/GR\d{5}/)) { foundSerial = text.match(/GR\d{5}/)[0]; detectedCase = "GRAAD"; }
-
-                if (foundSerial) {
-                    checkDatabase(foundSerial, detectedCase);
-                } else {
-                    statusText.innerText = "Non letto";
-                    detailsText.innerText = "Riprova o scrivi manualmente";
-                    resultBox.className = "";
-                }
-            } catch (e) { statusText.innerText = "Errore OCR"; }
+        function toggleVictimForm() {
+            const f = document.getElementById('victim-form');
+            f.style.display = f.style.display === 'block' ? 'none' : 'block';
         }
 
-        function checkDatabase(serial, cardCase) {
-            lastDetectedSerial = serial;
-            lastDetectedCase = cardCase;
-            const match = BLACKLIST.find(item => item.serial === serial);
-            
-            if (match) {
-                statusText.innerText = `🚨 ${match.case} RUBATA`;
-                detailsText.innerText = match.note;
-                resultBox.className = "stolen";
-                btnReport.style.display = "block";
-                if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-            } else {
-                statusText.innerText = `✅ ${cardCase} OK`;
-                detailsText.innerText = `Seriale ${serial} non segnalato.`;
-                resultBox.className = "safe";
-                btnReport.style.display = "none";
+        function addStolenCard() {
+            const s = document.getElementById('v-serial').value.trim();
+            if(s) {
+                BLACKLIST.push({ serial: s, note: "Segnalata dall'utente" });
+                alert("Registrata!"); toggleVictimForm();
             }
         }
 
-        function submitReport() {
-            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            const entry = document.createElement('div');
-            entry.className = 'report-item';
-            entry.innerHTML = `<span>${time} - <b>${lastDetectedCase} #${lastDetectedSerial}</b></span> <span>⚠️</span>`;
-            
-            if (reportList.innerText.includes("Nessuna")) reportList.innerHTML = "";
-            reportList.prepend(entry);
-            
-            alert("Segnalazione registrata!");
-            btnReport.style.display = "none";
+        async function takeSnapshot() {
+            statusText.innerText = "Analisi...";
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0);
+            try {
+                const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
+                let found = text.match(/\b\d{5,12}\b/);
+                if (found) checkDatabase(found[0]);
+                else statusText.innerText = "Riprova";
+            } catch (e) { statusText.innerText = "Errore OCR"; }
+        }
+
+        function checkDatabase(serial) {
+            const match = BLACKLIST.find(item => item.serial === serial);
+            if (match) {
+                statusText.innerText = `🚨 RUBATA!`;
+                detailsText.innerText = `Nota: ${match.note}`;
+                resultBox.className = "stolen";
+                btnChat.style.display = "block";
+                document.getElementById('chat-title').innerText = "Chat Seriale #" + serial;
+            } else {
+                statusText.innerText = `✅ SICURA`;
+                detailsText.innerText = `Nessuna segnalazione per #${serial}`;
+                resultBox.className = "safe";
+                btnChat.style.display = "none";
+            }
         }
 
         function checkManual() {
-            const val = manualInput.value.trim();
-            if (val) {
-                let type = "Manuale";
-                if (val.length === 8) type = "PSA";
-                if (val.length === 10) type = "BGS";
-                if (val.startsWith("GR")) type = "GRAAD";
-                checkDatabase(val, type);
+            const val = document.getElementById('manual-serial').value.trim();
+            if (val) checkDatabase(val);
+        }
+
+        // FUNZIONI CHAT
+        function openChat() { document.getElementById('chat-overlay').style.display = 'block'; }
+        function closeChat() { document.getElementById('chat-overlay').style.display = 'none'; }
+        
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            if (input.value.trim() !== "") {
+                const msg = document.createElement('div');
+                msg.className = 'msg me';
+                msg.innerText = input.value;
+                chatWindow.appendChild(msg);
+                input.value = "";
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+
+                // Simulazione risposta automatica del sistema
+                setTimeout(() => {
+                    const reply = document.createElement('div');
+                    reply.className = 'msg owner';
+                    reply.innerText = "Il proprietario è stato notificato della tua posizione e del messaggio.";
+                    chatWindow.appendChild(reply);
+                    chatWindow.scrollTop = chatWindow.scrollHeight;
+                }, 1500);
             }
         }
     </script>
