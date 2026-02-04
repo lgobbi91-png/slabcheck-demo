@@ -3,37 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SlabCheck - Swipe & Report</title>
+    <title>SlabCheck - Complete Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --red: #dc2626; --green: #16a34a; --orange: #f59e0b; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding-bottom: 30px; overflow-x: hidden; }
         
-        /* Header */
         #header { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #020617; border-bottom: 1px solid var(--accent); }
         .btn-msg-access { background: var(--card); color: var(--accent); border: 1px solid var(--accent); padding: 8px 15px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; }
 
-        /* Scanner */
         #camera-container { position: relative; width: 100%; height: 25vh; background: black; }
         #camera { width: 100%; height: 100%; object-fit: cover; }
 
-        /* UI Panels */
         .panel { padding: 15px; background: var(--card); margin: 10px; border-radius: 15px; border: 1px solid #334155; }
-        input { padding: 12px; border-radius: 8px; border: 1px solid #475569; width: 85%; background: #020617; color: white; margin-bottom: 10px; }
+        input, select { padding: 12px; border-radius: 8px; border: 1px solid #475569; width: 85%; background: #020617; color: white; margin-bottom: 10px; font-size: 1rem; }
         button { padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; width: 95%; margin-bottom: 8px; }
         .btn-scan { background: var(--accent); color: #000; }
         .btn-victim { background: transparent; border: 1px solid var(--red); color: var(--red); font-size: 0.8rem; }
 
-        /* Report Form */
         #victim-form { display: none; background: #1e293b; border: 1px solid var(--red); padding: 20px; margin: 10px; border-radius: 15px; }
 
-        /* Inbox & Swipe WhatsApp Style */
         #inbox-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 2000; padding: 20px; box-sizing: border-box; }
         .swipe-container { position: relative; overflow: hidden; margin-bottom: 10px; border-radius: 12px; background: var(--red); touch-action: pan-y; }
         .inbox-item { background: var(--card); padding: 15px; display: flex; align-items: center; gap: 12px; border: 1px solid #334155; position: relative; z-index: 2; transition: transform 0.2s ease-out; }
         .delete-action { position: absolute; right: 0; top: 0; height: 100%; width: 80px; background: var(--red); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem; z-index: 1; }
         
-        /* Chat Overlay */
         #chat-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 3000; padding: 20px; box-sizing: border-box; }
         #chat-window { height: 60vh; overflow-y: auto; background: #020617; border-radius: 12px; padding: 15px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; }
         .msg { padding: 10px; border-radius: 10px; max-width: 80%; font-size: 0.9rem; }
@@ -63,6 +57,16 @@
 
     <div id="victim-form">
         <h3 style="color:var(--red); margin:0 0 10px 0;">Segnala la tua carta</h3>
+        <select id="v-company">
+            <option value="" disabled selected>Casa di gradazione (PSA, BGS...)</option>
+            <option value="PSA">PSA</option>
+            <option value="BGS">BGS (Beckett)</option>
+            <option value="SGC">SGC</option>
+            <option value="CGC">CGC</option>
+            <option value="GRAAD">GRAAD</option>
+            <option value="AI_GRAD">AiGrading</option>
+            <option value="Altro">Altra casa</option>
+        </select>
         <input type="text" id="v-serial" placeholder="Seriale della slab">
         <button onclick="addStolenCard()" style="background:var(--red); color:white;">REGISTRA FURTO</button>
         <button onclick="toggleVictimForm()" style="background:none; color:#94a3b8; font-size:0.8rem;">Annulla</button>
@@ -115,7 +119,7 @@
         const btnChatTrigger = document.getElementById('btn-open-chat');
         const chatWindow = document.getElementById('chat-window');
 
-        let BLACKLIST = [{ serial: "47281093", note: "Rubata a Lucca Comics" }];
+        let BLACKLIST = [{ serial: "47281093", company: "PSA", note: "Rubata a Lucca Comics" }];
 
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(s => video.srcObject = s);
 
@@ -126,10 +130,13 @@
 
         function addStolenCard() {
             const s = document.getElementById('v-serial').value.trim();
-            if(s) { 
-                BLACKLIST.push({ serial: s, note: "Segnalata da te" }); 
-                alert("Carta " + s + " aggiunta alla Blacklist!"); 
+            const c = document.getElementById('v-company').value;
+            if(s && c) { 
+                BLACKLIST.push({ serial: s, company: c, note: "Segnalata dall'utente" }); 
+                alert("Carta " + c + " seriale " + s + " aggiunta alla Blacklist!"); 
                 toggleVictimForm(); 
+            } else {
+                alert("Inserisci sia la casa che il seriale!");
             }
         }
 
@@ -150,11 +157,12 @@
             const match = BLACKLIST.find(item => item.serial === serial);
             if (match) {
                 statusText.innerText = `🚨 RUBATA!`;
-                detailsText.innerText = `Seriale: ${serial} - ${match.note}`;
+                detailsText.innerText = `[${match.company}] Seriale: ${serial}`;
                 document.getElementById('result-box').style.background = "var(--red)";
                 btnChatTrigger.style.display = "block";
             } else {
                 statusText.innerText = `✅ SICURA`;
+                detailsText.innerText = `Nessuna segnalazione per #${serial}`;
                 document.getElementById('result-box').style.background = "var(--green)";
                 btnChatTrigger.style.display = "none";
             }
