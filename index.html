@@ -3,22 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SlabCheck - Multicase OCR</title>
+    <title>SlabCheck - Prototipo Finale</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #0f172a; color: white; text-align: center; margin: 0; }
-        #camera-container { position: relative; width: 100%; height: 40vh; background: black; }
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --accent: #38bdf8;
+            --red: #dc2626;
+            --green: #16a34a;
+            --orange: #f59e0b;
+        }
+
+        body { 
+            font-family: 'Segoe UI', system-ui, sans-serif; 
+            background: var(--bg); 
+            color: white; 
+            text-align: center; 
+            margin: 0; 
+            padding-bottom: 40px;
+        }
+
+        /* Fotocamera e Mirino */
+        #camera-container { 
+            position: relative; 
+            width: 100%; 
+            height: 40vh; 
+            background: black; 
+            overflow: hidden;
+            border-bottom: 2px solid var(--accent);
+        }
         #camera { width: 100%; height: 100%; object-fit: cover; }
-        #overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70%; height: 15%; border: 2px solid #38bdf8; border-radius: 8px; box-shadow: 0 0 20px rgba(56, 189, 248, 0.5); }
-        #controls { padding: 15px; background: #1e293b; display: flex; flex-direction: column; gap: 10px; align-items: center; }
-        button { padding: 15px 25px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; width: 85%; }
-        .btn-scan { background: #38bdf8; color: white; font-size: 1.1rem; }
-        .btn-check { background: #64748b; color: white; }
-        input { padding: 12px; border-radius: 8px; border: 1px solid #475569; width: 80%; background: #0f172a; color: white; text-align: center; font-size: 1rem; }
-        #result-box { padding: 25px; margin: 15px; border-radius: 15px; background: #334155; transition: 0.5s; min-height: 100px; }
-        .stolen { background: #dc2626 !important; animation: shake 0.5s; }
-        .safe { background: #16a34a !important; }
-        @keyframes shake { 0%, 100% {transform: translateX(0);} 25% {transform: translateX(-10px);} 75% {transform: translateX(10px);} }
+        #overlay { 
+            position: absolute; top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); 
+            width: 75%; height: 18%; 
+            border: 2px dashed var(--accent); 
+            border-radius: 12px; 
+            box-shadow: 0 0 0 1000px rgba(0,0,0,0.5);
+            pointer-events: none; 
+        }
+
+        /* Controlli */
+        #controls { padding: 20px; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+        input { 
+            padding: 14px; border-radius: 10px; border: 1px solid #475569; 
+            width: 85%; background: #020617; color: white; text-align: center; font-size: 1rem;
+        }
+        button { 
+            padding: 14px; border-radius: 10px; border: none; 
+            font-weight: bold; cursor: pointer; width: 90%; 
+            transition: transform 0.1s; 
+        }
+        button:active { transform: scale(0.98); }
+        .btn-scan { background: var(--accent); color: #000; font-size: 1.1rem; }
+        .btn-manual { background: #475569; color: white; }
+        .btn-report { background: var(--orange); color: white; display: none; margin-top: 10px; }
+
+        /* Risultati */
+        #result-box { 
+            padding: 25px; margin: 15px; border-radius: 16px; 
+            background: var(--card); transition: all 0.4s ease; 
+            border: 1px solid #334155;
+        }
+        .stolen { background: var(--red) !important; border-color: #f87171 !important; animation: shake 0.5s; }
+        .safe { background: var(--green) !important; border-color: #4ade80 !important; }
+
+        /* Lista Segnalazioni */
+        #report-list-container { 
+            margin: 20px; text-align: left; background: var(--card); 
+            padding: 20px; border-radius: 16px; border: 1px solid #334155;
+        }
+        .report-item { 
+            font-size: 0.85rem; border-bottom: 1px solid #334155; 
+            padding: 10px 0; display: flex; justify-content: space-between;
+        }
+        .report-item b { color: #f87171; }
+
+        @keyframes shake { 0%, 100% {transform: translateX(0);} 25% {transform: translateX(-8px);} 75% {transform: translateX(8px);} }
         #snapshot { display: none; }
     </style>
 </head>
@@ -32,12 +94,20 @@
     <div id="controls">
         <button class="btn-scan" onclick="takeSnapshot()">📷 SCATTA E ANALIZZA</button>
         <input type="text" id="manual-serial" placeholder="Inserisci seriale manuale...">
-        <button class="btn-check" onclick="checkManual()">VERIFICA MANUALE</button>
+        <button class="btn-manual" onclick="checkManual()">VERIFICA MANUALE</button>
+        <button id="btn-report" class="btn-report" onclick="submitReport()">⚠️ SEGNALA AVVISTAMENTO</button>
     </div>
     
     <div id="result-box">
-        <h3 id="status">Pronto</h3>
-        <p id="details">Riconoscimento automatico PSA, BGS, GRAAD.</p>
+        <h2 id="status" style="margin:0;">SlabCheck</h2>
+        <p id="details" style="opacity: 0.8; margin-top: 5px;">Pronto per l'analisi</p>
+    </div>
+
+    <div id="report-list-container">
+        <h3 style="margin-top:0; font-size:1rem; color:var(--accent);">📋 REGISTRO TEMPORANEO</h3>
+        <div id="report-list">
+            <p style="font-size:0.8rem; color:#64748b;">Nessuna segnalazione in questa sessione.</p>
+        </div>
     </div>
 
     <canvas id="snapshot"></canvas>
@@ -48,24 +118,32 @@
         const statusText = document.getElementById('status');
         const detailsText = document.getElementById('details');
         const resultBox = document.getElementById('result-box');
+        const btnReport = document.getElementById('btn-report');
+        const reportList = document.getElementById('report-list');
         const manualInput = document.getElementById('manual-serial');
 
+        // DATABASE DI TEST
         const BLACKLIST = [
             { serial: "47281093", case: "PSA", note: "Rubata a Lucca Comics" },
-            { serial: "0012345678", case: "BGS", note: "Smarrita spedizione FedEx" },
-            { serial: "GR12345", case: "GRAAD", note: "Segnalata su Facebook" }
+            { serial: "0012345678", case: "BGS", note: "Pacco smarrito" },
+            { serial: "GR12345", case: "GRAAD", note: "Segnalata su FB" }
         ];
 
+        let lastDetectedSerial = "";
+        let lastDetectedCase = "";
+
+        // Avvio camera
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
             .then(stream => { video.srcObject = stream; })
-            .catch(err => { statusText.innerText = "Camera non attiva"; });
+            .catch(err => { statusText.innerText = "Camera Off"; });
 
         async function takeSnapshot() {
-            statusText.innerText = "Analisi Multicase...";
+            statusText.innerText = "Analisi...";
+            btnReport.style.display = "none";
             const ctx = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
+            canvas.width = video.videoWidth; 
             canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(video, 0, 0);
             
             try {
                 const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
@@ -73,46 +151,56 @@
                 let foundSerial = null;
                 let detectedCase = "Sconosciuta";
 
-                // Regex Multicase
-                if (text.match(/\b\d{8}\b/)) { 
-                    foundSerial = text.match(/\b\d{8}\b/)[0]; 
-                    detectedCase = "PSA"; 
-                }
-                else if (text.match(/\b\d{10}\b/)) { 
-                    foundSerial = text.match(/\b\d{10}\b/)[0]; 
-                    detectedCase = "BGS"; 
-                }
-                else if (text.match(/GR\d{5}/)) { 
-                    foundSerial = text.match(/GR\d{5}/)[0]; 
-                    detectedCase = "GRAAD"; 
-                }
+                // Logica Multicase
+                if (text.match(/\b\d{8}\b/)) { foundSerial = text.match(/\b\d{8}\b/)[0]; detectedCase = "PSA"; }
+                else if (text.match(/\b\d{10}\b/)) { foundSerial = text.match(/\b\d{10}\b/)[0]; detectedCase = "BGS"; }
+                else if (text.match(/GR\d{5}/)) { foundSerial = text.match(/GR\d{5}/)[0]; detectedCase = "GRAAD"; }
 
                 if (foundSerial) {
                     checkDatabase(foundSerial, detectedCase);
                 } else {
-                    statusText.innerText = "❌ Non riconosciuto";
-                    detailsText.innerText = "Prova ad avvicinarti o usa l'inserimento manuale.";
+                    statusText.innerText = "Non letto";
+                    detailsText.innerText = "Riprova o scrivi manualmente";
+                    resultBox.className = "";
                 }
             } catch (e) { statusText.innerText = "Errore OCR"; }
         }
 
         function checkDatabase(serial, cardCase) {
+            lastDetectedSerial = serial;
+            lastDetectedCase = cardCase;
             const match = BLACKLIST.find(item => item.serial === serial);
+            
             if (match) {
-                statusText.innerText = `🚨 ${match.case} RUBATA!`;
-                detailsText.innerText = `Seriale: ${serial}\nNota: ${match.note}`;
+                statusText.innerText = `🚨 ${match.case} RUBATA`;
+                detailsText.innerText = match.note;
                 resultBox.className = "stolen";
+                btnReport.style.display = "block";
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
             } else {
-                statusText.innerText = `✅ ${cardCase} SICURA`;
-                detailsText.innerText = `Il seriale ${serial} è pulito.`;
+                statusText.innerText = `✅ ${cardCase} OK`;
+                detailsText.innerText = `Seriale ${serial} non segnalato.`;
                 resultBox.className = "safe";
+                btnReport.style.display = "none";
             }
+        }
+
+        function submitReport() {
+            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const entry = document.createElement('div');
+            entry.className = 'report-item';
+            entry.innerHTML = `<span>${time} - <b>${lastDetectedCase} #${lastDetectedSerial}</b></span> <span>⚠️</span>`;
+            
+            if (reportList.innerText.includes("Nessuna")) reportList.innerHTML = "";
+            reportList.prepend(entry);
+            
+            alert("Segnalazione registrata!");
+            btnReport.style.display = "none";
         }
 
         function checkManual() {
             const val = manualInput.value.trim();
             if (val) {
-                // Autodetect case per inserimento manuale
                 let type = "Manuale";
                 if (val.length === 8) type = "PSA";
                 if (val.length === 10) type = "BGS";
