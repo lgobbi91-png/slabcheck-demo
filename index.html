@@ -3,82 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SlabCheck - OCR Test</title>
+    <title>SlabCheck - Test Ibrido</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #0f172a; color: white; text-align: center; margin: 0; overflow: hidden; }
-        #camera { width: 100%; height: 60vh; object-fit: cover; }
-        #overlay { position: absolute; top: 20%; left: 10%; width: 80%; height: 20%; border: 2px solid #38bdf8; border-radius: 10px; box-shadow: 0 0 15px #38bdf8; pointer-events: none; }
-        #result-box { padding: 20px; font-size: 1.2rem; height: 40vh; }
-        .safe { background: #22c55e; color: white; }
-        .stolen { background: #ef4444; color: white; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: white; text-align: center; margin: 0; }
+        #camera { width: 100%; height: 40vh; object-fit: cover; border-bottom: 2px solid #38bdf8; }
+        #controls { padding: 20px; background: #1e293b; }
+        input { padding: 12px; border-radius: 8px; border: none; width: 60%; font-size: 1rem; margin-bottom: 10px; }
+        button { padding: 12px 24px; border-radius: 8px; border: none; background: #38bdf8; color: white; font-weight: bold; cursor: pointer; }
+        #result-box { padding: 30px; margin: 20px; border-radius: 15px; transition: 0.3s; background: #334155; }
+        .safe { background: #16a34a !important; }
+        .stolen { background: #dc2626 !important; animation: shake 0.5s; }
+        @keyframes shake { 0%, 100% {transform: translateX(0);} 25% {transform: translateX(-10px);} 75% {transform: translateX(10px);} }
     </style>
 </head>
 <body>
 
     <video id="camera" autoplay playsinline></video>
-    <div id="overlay"></div>
     
-    <div id="result-box">
-        <p id="status">Punta il seriale nel riquadro...</p>
-        <h2 id="detected-text">---</h2>
+    <div id="controls">
+        <p style="margin-top:0;">Scansiona o inserisci manualmente:</p>
+        <input type="text" id="manual-serial" placeholder="Es. 47281093">
+        <button onclick="checkManual()">VERIFICA</button>
+    </div>
+    
+    <div id="result-box" id="result-ui">
+        <h3 id="status">In attesa di dati...</h3>
+        <p id="details">Inserisci il seriale per testare il database.</p>
     </div>
 
     <script>
         const video = document.getElementById('camera');
         const statusText = document.getElementById('status');
-        const detectedDisplay = document.getElementById('detected-text');
+        const detailsText = document.getElementById('details');
         const resultBox = document.getElementById('result-box');
+        const manualInput = document.getElementById('manual-serial');
 
-        // DATABASE DI PROVA
         const BLACKLIST = ["47281093", "12345678"];
 
-        // Avvio Fotocamera
-        async function startCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-            video.srcObject = stream;
-            processFrame();
-        }
-
-        // Elaborazione OCR ogni 2 secondi per non sovraccaricare il cell
-        async function processFrame() {
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-
-            statusText.innerText = "Scansione in corso...";
-            
-            const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
-            
-            // Pulizia testo: cerchiamo solo sequenze di 8 numeri
-            const match = text.match(/\d{8}/);
-            
-            if (match) {
-                const serial = match[0];
-                detectedDisplay.innerText = "Seriale: " + serial;
-                checkDatabase(serial);
-            } else {
-                statusText.innerText = "Nessun seriale rilevato...";
-            }
-
-            setTimeout(processFrame, 2000);
-        }
-
+        // Funzione di verifica logica
         function checkDatabase(serial) {
-            if (BLACKLIST.includes(serial)) {
-                statusText.innerText = "🚨 ATTENZIONE: CARTA RUBATA!";
+            const cleanSerial = serial.trim();
+            if (BLACKLIST.includes(cleanSerial)) {
+                statusText.innerText = "🚨 CARTA RUBATA!";
+                detailsText.innerText = "Seriale " + cleanSerial + " trovato nel database dei furti.";
                 resultBox.className = "stolen";
-                // Vibrazione (se supportata)
                 if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
             } else {
-                statusText.innerText = "✅ Seriale Pulito";
+                statusText.innerText = "✅ CARTA SICURA";
+                detailsText.innerText = "Nessuna segnalazione per il seriale " + cleanSerial;
                 resultBox.className = "safe";
             }
         }
 
-        startCamera();
+        // Funzione per il tasto manuale
+        function checkManual() {
+            const val = manualInput.value;
+            if (val.length > 3) {
+                checkDatabase(val);
+            } else {
+                alert("Inserisci un seriale valido");
+            }
+        }
+
+        // Avvio camera (opzionale se vuoi solo testare il manuale)
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => console.log("Camera non disponibile"));
+
     </script>
 </body>
 </html>
