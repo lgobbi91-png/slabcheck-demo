@@ -3,70 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SlabCheck - Community Chat</title>
+    <title>SlabCheck - Community Edition</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --red: #dc2626; --green: #16a34a; --orange: #f59e0b; }
-        body { font-family: sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; overflow-x: hidden; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding-bottom: 50px; overflow-x: hidden; }
         
-        /* Camera */
+        /* Camera Section */
         #camera-container { position: relative; width: 100%; height: 25vh; background: black; border-bottom: 2px solid var(--accent); }
         #camera { width: 100%; height: 100%; object-fit: cover; }
+        #overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70%; height: 30%; border: 2px dashed var(--accent); border-radius: 8px; pointer-events: none; opacity: 0.6; }
+
+        /* UI Panels */
+        .panel { padding: 15px; background: var(--card); margin: 10px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        input { padding: 12px; border-radius: 8px; border: 1px solid #475569; width: 85%; background: #020617; color: white; margin-bottom: 10px; font-size: 1rem; }
+        button { padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; width: 95%; transition: transform 0.1s; }
+        button:active { transform: scale(0.98); }
         
-        .panel { padding: 15px; background: var(--card); margin: 10px; border-radius: 12px; border: 1px solid #334155; }
-        input { padding: 12px; border-radius: 8px; border: 1px solid #475569; width: 80%; background: #020617; color: white; margin-bottom: 10px; }
-        button { padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; width: 90%; margin-bottom: 5px; }
-        
-        .btn-scan { background: var(--accent); color: #000; }
-        .btn-chat { background: var(--orange); color: white; display: none; }
+        .btn-scan { background: var(--accent); color: #000; margin-bottom: 10px; }
+        .btn-victim { background: transparent; border: 1px solid var(--red); color: var(--red); font-size: 0.8rem; margin-top: 5px; }
+        .btn-chat { background: var(--orange); color: white; display: none; margin-top: 15px; animation: pulse 2s infinite; }
 
-        #result-box { padding: 20px; margin: 10px; border-radius: 12px; transition: 0.4s; background: #334155; }
-        .stolen { background: var(--red) !important; }
-        .safe { background: var(--green) !important; }
+        /* Results */
+        #result-box { padding: 20px; margin: 10px; border-radius: 12px; background: #1e293b; border: 1px solid #334155; transition: 0.4s; }
+        .stolen { background: var(--red) !important; border-color: #f87171 !important; }
+        .safe { background: var(--green) !important; border-color: #4ade80 !important; }
 
-        /* Chat System */
-        #chat-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 100; padding: 20px; box-sizing: border-box; }
-        #chat-window { height: 60vh; overflow-y: auto; background: #020617; border-radius: 12px; padding: 15px; margin-bottom: 15px; text-align: left; }
-        .msg { margin-bottom: 10px; padding: 8px 12px; border-radius: 8px; max-width: 80%; font-size: 0.9rem; }
-        .msg.me { background: var(--accent); color: black; align-self: flex-end; margin-left: auto; }
-        .msg.owner { background: #334155; color: white; }
+        /* Fullscreen Chat Overlay */
+        #chat-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 1000; padding: 20px; box-sizing: border-box; }
+        #chat-window { height: 65vh; overflow-y: auto; background: #020617; border-radius: 12px; padding: 15px; margin-bottom: 15px; text-align: left; display: flex; flex-direction: column; gap: 10px; border: 1px solid #334155; }
+        .msg { padding: 10px 14px; border-radius: 12px; max-width: 85%; font-size: 0.9rem; line-height: 1.4; }
+        .msg.me { background: var(--accent); color: black; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .msg.owner { background: #334155; color: white; align-self: flex-start; border-bottom-left-radius: 2px; }
 
-        #victim-form { display: none; border: 1px solid var(--red); padding: 15px; margin: 10px; border-radius: 12px; }
+        /* Victim Form */
+        #victim-form { display: none; background: #1e293b; border: 1px solid var(--red); padding: 20px; margin: 10px; border-radius: 12px; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+        @keyframes shake { 0%, 100% {transform: translateX(0);} 25% {transform: translateX(-8px);} 75% {transform: translateX(8px);} }
+        #snapshot { display: none; }
     </style>
 </head>
 <body>
 
     <div id="camera-container">
         <video id="camera" autoplay playsinline></video>
+        <div id="overlay"></div>
     </div>
     
     <div class="panel">
         <button class="btn-scan" onclick="takeSnapshot()">📷 SCANSIONA CARTA</button>
-        <input type="text" id="manual-serial" placeholder="Seriale manuale...">
-        <button onclick="checkManual()" style="background:#475569; color:white;">CONTROLLA</button>
-        <button style="background:none; color:var(--red); font-size:0.8rem; border:1px solid var(--red);" onclick="toggleVictimForm()">Segnala furto</button>
+        <input type="text" id="manual-serial" placeholder="Inserimento manuale...">
+        <button onclick="checkManual()" style="background:#475569; color:white;">VERIFICA</button>
+        <button class="btn-victim" onclick="toggleVictimForm()">Hai subito un furto? Segnala qui</button>
     </div>
 
     <div id="victim-form">
-        <h4 style="color:var(--red); margin:0 0 10px 0;">Segnala la tua carta</h4>
-        <input type="text" id="v-serial" placeholder="Seriale rubato">
-        <button onclick="addStolenCard()" style="background:var(--red); color:white;">PUBBLICA</button>
+        <h3 style="color:var(--red); margin:0 0 10px 0;">Segnala Furto</h3>
+        <input type="text" id="v-serial" placeholder="Seriale della carta">
+        <input type="text" id="v-note" placeholder="Dettagli (es: Luogo del furto)">
+        <button onclick="addStolenCard()" style="background:var(--red); color:white;">PUBBLICA NELLA BLACKLIST</button>
+        <button onclick="toggleVictimForm()" style="background:none; color:#64748b; font-size:0.7rem;">Annulla</button>
     </div>
     
     <div id="result-box">
-        <h3 id="status" style="margin:0;">SlabCheck</h3>
-        <p id="details" style="font-size:0.8rem;">Pronto</p>
+        <h3 id="status" style="margin:0;">SlabCheck Ready</h3>
+        <p id="details" style="font-size:0.85rem; opacity:0.8;">Inquadra il seriale o scrivilo</p>
         <button id="btn-open-chat" class="btn-chat" onclick="openChat()">💬 CONTATTA PROPRIETARIO</button>
     </div>
 
     <div id="chat-overlay">
-        <h3 id="chat-title" style="color:var(--accent);">Chat con Proprietario</h3>
+        <div onclick="closeChat()" style="position:absolute; top:15px; right:20px; font-size:2.5rem; cursor:pointer; color:var(--accent); line-height:1;">&times;</div>
+        
+        <h3 id="chat-title" style="color:var(--accent); margin-top:10px; text-align:left;">Chat di Ritrovamento</h3>
+        <hr style="border:0.1px solid #334155; margin-bottom:15px;">
+
         <div id="chat-window">
-            <div class="msg owner">Sistema: Sei in contatto anonimo con il proprietario della carta segnalata.</div>
+            <div class="msg owner">Sistema: Sei in contatto anonimo. Usa questa chat per aiutare il proprietario a recuperare la sua carta.</div>
         </div>
-        <input type="text" id="chat-input" placeholder="Scrivi un messaggio...">
-        <button onclick="sendMessage()" style="background:var(--accent); color:black;">INVIA</button>
-        <button onclick="closeChat()" style="background:none; color:white; margin-top:10px;">Chiudi Chat</button>
+
+        <div style="display:flex; gap:8px;">
+            <input type="text" id="chat-input" placeholder="Scrivi un messaggio..." style="margin-bottom:0; flex-grow:1;">
+            <button onclick="sendMessage()" style="background:var(--accent); color:black; width:auto; padding:0 20px;">Invia</button>
+        </div>
+        <button onclick="closeChat()" style="background:#1e293b; color:#94a3b8; margin-top:15px; border:1px solid #334155;">TORNA ALLO SCANNER</button>
     </div>
 
     <canvas id="snapshot" style="display:none;"></canvas>
@@ -80,8 +100,10 @@
         const btnChat = document.getElementById('btn-open-chat');
         const chatWindow = document.getElementById('chat-window');
 
+        // Database temporaneo
         let BLACKLIST = [
-            { serial: "47281093", note: "Rubata a Lucca Comics" }
+            { serial: "47281093", note: "Rubata a Lucca Comics (PSA)" },
+            { serial: "0012345678", note: "Smarrita spedizione (BGS)" }
         ];
 
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(s => video.srcObject = s);
@@ -93,22 +115,25 @@
 
         function addStolenCard() {
             const s = document.getElementById('v-serial').value.trim();
-            if(s) {
-                BLACKLIST.push({ serial: s, note: "Segnalata dall'utente" });
-                alert("Registrata!"); toggleVictimForm();
+            const n = document.getElementById('v-note').value.trim() || "Segnalata da utente";
+            if(s.length > 3) {
+                BLACKLIST.push({ serial: s, note: n });
+                alert("Codice registrato correttamente!"); 
+                toggleVictimForm();
             }
         }
 
         async function takeSnapshot() {
-            statusText.innerText = "Analisi...";
+            statusText.innerText = "Analisi OCR...";
+            btnChat.style.display = "none";
             const ctx = canvas.getContext('2d');
             canvas.width = video.videoWidth; canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0);
             try {
                 const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
-                let found = text.match(/\b\d{5,12}\b/);
+                let found = text.match(/\b[A-Z0-9]{5,12}\b/);
                 if (found) checkDatabase(found[0]);
-                else statusText.innerText = "Riprova";
+                else { statusText.innerText = "Non riconosciuto"; resultBox.className = ""; }
             } catch (e) { statusText.innerText = "Errore OCR"; }
         }
 
@@ -119,10 +144,11 @@
                 detailsText.innerText = `Nota: ${match.note}`;
                 resultBox.className = "stolen";
                 btnChat.style.display = "block";
-                document.getElementById('chat-title').innerText = "Chat Seriale #" + serial;
+                document.getElementById('chat-title').innerText = "Segnalazione #" + serial;
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
             } else {
                 statusText.innerText = `✅ SICURA`;
-                detailsText.innerText = `Nessuna segnalazione per #${serial}`;
+                detailsText.innerText = `Il seriale #${serial} non è in blacklist.`;
                 resultBox.className = "safe";
                 btnChat.style.display = "none";
             }
@@ -133,7 +159,7 @@
             if (val) checkDatabase(val);
         }
 
-        // FUNZIONI CHAT
+        // LOGICA CHAT
         function openChat() { document.getElementById('chat-overlay').style.display = 'block'; }
         function closeChat() { document.getElementById('chat-overlay').style.display = 'none'; }
         
@@ -147,14 +173,13 @@
                 input.value = "";
                 chatWindow.scrollTop = chatWindow.scrollHeight;
 
-                // Simulazione risposta automatica del sistema
                 setTimeout(() => {
                     const reply = document.createElement('div');
                     reply.className = 'msg owner';
-                    reply.innerText = "Il proprietario è stato notificato della tua posizione e del messaggio.";
+                    reply.innerText = "Messaggio inviato. Il proprietario riceverà la segnalazione non appena possibile.";
                     chatWindow.appendChild(reply);
                     chatWindow.scrollTop = chatWindow.scrollHeight;
-                }, 1500);
+                }, 1000);
             }
         }
     </script>
