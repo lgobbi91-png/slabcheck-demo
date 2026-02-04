@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SlabCheck - Complete Edition</title>
+    <title>SlabCheck - Swipe & Report</title>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --red: #dc2626; --green: #16a34a; --orange: #f59e0b; }
@@ -13,35 +13,26 @@
         #header { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #020617; border-bottom: 1px solid var(--accent); }
         .btn-msg-access { background: var(--card); color: var(--accent); border: 1px solid var(--accent); padding: 8px 15px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; }
 
-        /* Camera */
+        /* Scanner */
         #camera-container { position: relative; width: 100%; height: 25vh; background: black; }
         #camera { width: 100%; height: 100%; object-fit: cover; }
-        #overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70%; height: 25%; border: 2px dashed var(--accent); border-radius: 12px; pointer-events: none; opacity: 0.5; }
 
-        /* Panels */
+        /* UI Panels */
         .panel { padding: 15px; background: var(--card); margin: 10px; border-radius: 15px; border: 1px solid #334155; }
-        input { padding: 12px; border-radius: 8px; border: 1px solid #475569; width: 85%; background: #020617; color: white; margin-bottom: 10px; font-size: 1rem; }
+        input { padding: 12px; border-radius: 8px; border: 1px solid #475569; width: 85%; background: #020617; color: white; margin-bottom: 10px; }
         button { padding: 12px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; width: 95%; margin-bottom: 8px; }
-        
-        .btn-scan { background: var(--accent); color: #000; font-size: 1.1rem; }
-        .btn-victim { background: transparent; border: 1px solid var(--red); color: var(--red); font-size: 0.8rem; margin-top: 5px; }
-        .btn-chat-trigger { background: var(--orange); color: white; display: none; margin-top: 15px; }
+        .btn-scan { background: var(--accent); color: #000; }
+        .btn-victim { background: transparent; border: 1px solid var(--red); color: var(--red); font-size: 0.8rem; }
 
-        #result-box { padding: 25px; margin: 15px; border-radius: 15px; background: var(--card); border: 1px solid #334155; }
-        .stolen { background: var(--red) !important; }
-        .safe { background: var(--green) !important; }
+        /* Report Form */
+        #victim-form { display: none; background: #1e293b; border: 1px solid var(--red); padding: 20px; margin: 10px; border-radius: 15px; }
 
-        /* Victim Form */
-        #victim-form { display: none; background: #1e293b; border: 1px solid var(--red); padding: 20px; margin: 10px; border-radius: 15px; animation: slideDown 0.3s; }
-        @keyframes slideDown { from {opacity:0; transform: translateY(-10px);} to {opacity:1; transform: translateY(0);} }
-
-        /* Inbox & Swipe */
-        #inbox-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 2000; padding: 20px; box-sizing: border-box; overflow-y: auto; }
+        /* Inbox & Swipe WhatsApp Style */
+        #inbox-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 2000; padding: 20px; box-sizing: border-box; }
         .swipe-container { position: relative; overflow: hidden; margin-bottom: 10px; border-radius: 12px; background: var(--red); touch-action: pan-y; }
         .inbox-item { background: var(--card); padding: 15px; display: flex; align-items: center; gap: 12px; border: 1px solid #334155; position: relative; z-index: 2; transition: transform 0.2s ease-out; }
         .delete-action { position: absolute; right: 0; top: 0; height: 100%; width: 80px; background: var(--red); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem; z-index: 1; }
-        .avatar { width: 40px; height: 40px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: black; font-weight: bold; flex-shrink: 0; }
-
+        
         /* Chat Overlay */
         #chat-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 3000; padding: 20px; box-sizing: border-box; }
         #chat-window { height: 60vh; overflow-y: auto; background: #020617; border-radius: 12px; padding: 15px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; }
@@ -61,43 +52,41 @@
 
     <div id="camera-container">
         <video id="camera" autoplay playsinline></video>
-        <div id="overlay"></div>
     </div>
     
     <div class="panel">
-        <button class="btn-scan" onclick="takeSnapshot()">📷 SCANSIONA ORA</button>
+        <button class="btn-scan" onclick="takeSnapshot()">📷 SCANSIONA CARTA</button>
         <input type="text" id="manual-serial" placeholder="Seriale manuale...">
-        <button onclick="checkManual()" style="background:#475569; color:white;">CONTROLLA</button>
-        <button class="btn-victim" onclick="toggleVictimForm()">⚠️ Segnala carta rubata</button>
+        <button onclick="checkManual()" style="background:#475569; color:white;">VERIFICA</button>
+        <button class="btn-victim" onclick="toggleVictimForm()">⚠️ SEGNALA FURTO</button>
     </div>
 
     <div id="victim-form">
-        <h3 style="color:var(--red); margin:0 0 10px 0;">Modulo Furto</h3>
-        <input type="text" id="v-serial" placeholder="Inserisci il seriale rubato">
-        <input type="text" id="v-note" placeholder="Dove è stata rubata?">
-        <button onclick="addStolenCard()" style="background:var(--red); color:white;">INVIA SEGNALAZIONE</button>
+        <h3 style="color:var(--red); margin:0 0 10px 0;">Segnala la tua carta</h3>
+        <input type="text" id="v-serial" placeholder="Seriale della slab">
+        <button onclick="addStolenCard()" style="background:var(--red); color:white;">REGISTRA FURTO</button>
         <button onclick="toggleVictimForm()" style="background:none; color:#94a3b8; font-size:0.8rem;">Annulla</button>
     </div>
     
-    <div id="result-box">
+    <div id="result-box" class="panel" style="border:none;">
         <h3 id="status" style="margin:0;">Pronto</h3>
-        <p id="details" style="font-size:0.9rem; opacity:0.8;">Verifica l'autenticità della slab</p>
-        <button id="btn-open-chat" class="btn-chat-trigger" onclick="openChat()">💬 CONTATTA PROPRIETARIO</button>
+        <p id="details" style="font-size:0.9rem; opacity:0.8;">Inquadra o scrivi il numero</p>
+        <button id="btn-open-chat" style="display:none; background:var(--orange); color:white; margin-top:15px;" onclick="openChat()">💬 CONTATTA PROPRIETARIO</button>
     </div>
 
     <div id="inbox-screen">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h2 style="margin:0; color:var(--accent);">Inbox</h2>
+            <h2 style="margin:0; color:var(--accent);">I tuoi Messaggi</h2>
             <button onclick="closeInbox()" style="width:auto; background:none; color:white; border:1px solid #334155; padding:5px 15px; border-radius:10px;">Chiudi</button>
         </div>
         <div id="inbox-list">
-            <div class="swipe-container" id="chat-sample">
-                <div class="delete-action" onclick="deleteMessage('chat-sample')">ELIMINA</div>
+            <div class="swipe-container" id="chat-1">
+                <div class="delete-action" onclick="deleteMessage('chat-1')">ELIMINA</div>
                 <div class="inbox-item" ontouchstart="handleStart(event)" ontouchmove="handleMove(event)" ontouchend="handleEnd(event)">
-                    <div class="avatar">!</div>
-                    <div style="flex-grow:1;" onclick="openChat('Segnalazione')">
-                        <h4 style="margin:0;">Supporto SlabCheck</h4>
-                        <p style="margin:0; font-size:0.7rem; color:#94a3b8;">Benvenuto nella tua area messaggi.</p>
+                    <div style="width:40px; height:40px; background:var(--accent); border-radius:50%; flex-shrink:0;"></div>
+                    <div style="flex-grow:1; text-align:left;" onclick="openChat('Esempio')">
+                        <h4 style="margin:0;">Seriale #47281093</h4>
+                        <p style="margin:0; font-size:0.7rem; color:#94a3b8;">Scorri a sinistra per cancellare</p>
                     </div>
                 </div>
             </div>
@@ -112,7 +101,7 @@
         <div id="chat-window"><div class="msg owner">Sistema: Messaggistica sicura attiva.</div></div>
         <div style="display:flex; gap:8px;">
             <input type="text" id="chat-input" placeholder="Scrivi..." style="margin:0; flex-grow:1;">
-            <button onclick="sendMessage()" style="background:var(--accent); color:black; width:auto; padding:0 10px;">Invia</button>
+            <button onclick="sendMessage()" style="background:var(--accent); color:black; width:auto; padding:0 15px;">Invia</button>
         </div>
     </div>
 
@@ -137,10 +126,9 @@
 
         function addStolenCard() {
             const s = document.getElementById('v-serial').value.trim();
-            const n = document.getElementById('v-note').value.trim() || "Segnalata da utente";
             if(s) { 
-                BLACKLIST.push({ serial: s, note: n }); 
-                alert("Seriale " + s + " inserito nella Blacklist!"); 
+                BLACKLIST.push({ serial: s, note: "Segnalata da te" }); 
+                alert("Carta " + s + " aggiunta alla Blacklist!"); 
                 toggleVictimForm(); 
             }
         }
@@ -162,13 +150,12 @@
             const match = BLACKLIST.find(item => item.serial === serial);
             if (match) {
                 statusText.innerText = `🚨 RUBATA!`;
-                detailsText.innerText = `Nota: ${match.note}`;
-                resultBox.className = "stolen";
+                detailsText.innerText = `Seriale: ${serial} - ${match.note}`;
+                document.getElementById('result-box').style.background = "var(--red)";
                 btnChatTrigger.style.display = "block";
             } else {
                 statusText.innerText = `✅ SICURA`;
-                detailsText.innerText = `Nessuna segnalazione per #${serial}`;
-                resultBox.className = "safe";
+                document.getElementById('result-box').style.background = "var(--green)";
                 btnChatTrigger.style.display = "none";
             }
         }
@@ -178,7 +165,7 @@
             if (val) checkDatabase(val);
         }
 
-        // SWIPE TO DELETE LOGIC
+        // SWIPE LOGIC
         let startX = 0; let currentTranslate = 0; let activeItem = null;
         function handleStart(e) { startX = e.touches[0].clientX; activeItem = e.currentTarget; activeItem.style.transition = 'none'; }
         function handleMove(e) {
@@ -195,7 +182,7 @@
 
         function deleteMessage(id) {
             const el = document.getElementById(id);
-            el.style.opacity = '0'; el.style.height = '0';
+            el.style.opacity = '0'; el.style.transform = 'scale(0.9)';
             setTimeout(() => el.remove(), 300);
         }
 
