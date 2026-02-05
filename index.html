@@ -2,15 +2,31 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SlabCheck - Pro Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SlabCheck</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SlabCheck">
+    <link rel="apple-touch-icon" href="logo.png">
+
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    
     <style>
         :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --red: #dc2626; --green: #16a34a; --orange: #f59e0b; }
         
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding-bottom: 30px; overflow-x: hidden; }
+        body { 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            background: var(--bg); 
+            color: white; 
+            text-align: center; 
+            margin: 0; 
+            padding-bottom: 30px; 
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
 
-        /* --- NUOVA ANIMAZIONE SPLASH SCREEN --- */
+        /* --- SPLASH SCREEN AVANZATA --- */
         #splash-screen {
             position: fixed;
             top: 0; left: 0;
@@ -21,54 +37,88 @@
             align-items: center;
             justify-content: center;
             z-index: 9999;
-            transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease;
+            transition: transform 0.8s cubic-bezier(0.77, 0, 0.175, 1), opacity 0.5s ease;
         }
 
         #splash-screen img { 
-            width: 130px; 
+            width: 140px; 
             opacity: 0; 
-            transform: scale(0.85);
-            animation: logoEntry 1s forwards ease-out;
+            transform: scale(0.8);
+            animation: logoEntry 0.8s forwards ease-out;
         }
 
         @keyframes logoEntry { to { opacity: 1; transform: scale(1); } }
 
-        .splash-hidden { transform: translateY(-100%); opacity: 0; visibility: hidden; }
+        /* Effetto chiusura verso l'alto */
+        .splash-hidden { transform: translateY(-100%); }
 
         /* --- LAYOUT APP --- */
-        #main-content { opacity: 0; transition: opacity 0.8s ease; }
+        #main-content { opacity: 0; transition: opacity 0.6s ease; }
         .content-visible { opacity: 1 !important; }
 
-        #header { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #020617; border-bottom: 1px solid var(--accent); }
-        .logo-header { height: 35px; }
+        #header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 15px 20px; 
+            background: #020617; 
+            border-bottom: 1px solid rgba(56, 189, 248, 0.3); 
+            padding-top: env(safe-area-inset-top); /* Gestione notch iPhone */
+        }
+        .logo-header { height: 35px; object-fit: contain; }
 
-        #camera-container { position: relative; width: 100%; height: 28vh; background: black; }
+        #camera-container { position: relative; width: 100%; height: 28vh; background: black; overflow: hidden; }
         #camera { width: 100%; height: 100%; object-fit: cover; }
-        #overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70%; height: 20%; border: 2px dashed var(--accent); border-radius: 12px; pointer-events: none; opacity: 0.4; }
+        #overlay { 
+            position: absolute; top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); 
+            width: 75%; height: 25%; 
+            border: 2px dashed var(--accent); 
+            border-radius: 15px; 
+            pointer-events: none; 
+            box-shadow: 0 0 0 1000px rgba(0,0,0,0.4);
+        }
 
-        .panel { padding: 15px; background: var(--card); margin: 12px; border-radius: 18px; border: 1px solid #334155; }
-        input, select { padding: 12px; border-radius: 10px; border: 1px solid #475569; width: 88%; background: #020617; color: white; margin-bottom: 10px; font-size: 1rem; }
+        .panel { padding: 18px; background: var(--card); margin: 15px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         
-        button { padding: 14px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; width: 95%; margin-bottom: 10px; transition: transform 0.1s; }
-        button:active { transform: scale(0.98); }
-
-        .btn-scan { background: var(--accent); color: #000; font-size: 1.1rem; }
-        .btn-victim { background: transparent; border: 1px solid var(--red); color: var(--red); font-size: 0.85rem; }
-
-        #result-box { transition: background 0.3s ease; }
-
-        /* --- INBOX & SWIPE --- */
-        #inbox-screen, #chat-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 2000; padding: 20px; box-sizing: border-box; overflow-y: auto; }
+        input, select { 
+            padding: 14px; border-radius: 12px; border: 1px solid #334155; 
+            width: 90%; background: #020617; color: white; 
+            margin-bottom: 12px; font-size: 1rem; outline: none;
+        }
         
-        .swipe-container { position: relative; overflow: hidden; margin-bottom: 12px; border-radius: 14px; background: var(--red); touch-action: pan-y; }
-        .inbox-item { background: var(--card); padding: 18px; display: flex; align-items: center; gap: 15px; border: 1px solid #334155; position: relative; z-index: 2; transition: transform 0.2s ease-out; }
-        .delete-action { position: absolute; right: 0; top: 0; height: 100%; width: 85px; background: var(--red); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; z-index: 1; }
+        button { 
+            padding: 15px; border-radius: 14px; border: none; 
+            font-weight: bold; cursor: pointer; width: 100%; 
+            margin-bottom: 10px; transition: 0.2s; font-size: 1rem;
+        }
+        button:active { transform: scale(0.96); opacity: 0.9; }
 
-        /* --- CHAT --- */
-        #chat-window { height: 65vh; overflow-y: auto; background: #020617; border-radius: 15px; padding: 15px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 12px; border-radius: 12px; max-width: 80%; font-size: 0.95rem; }
-        .msg.me { background: var(--accent); color: black; align-self: flex-end; }
-        .msg.owner { background: #334155; color: white; align-self: flex-start; }
+        .btn-scan { background: var(--accent); color: #020617; box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3); }
+        .btn-victim { background: transparent; border: 1px solid var(--red); color: var(--red); margin-top: 5px; }
+
+        /* RISULTATI */
+        #result-box { transition: all 0.4s ease; border: 2px solid transparent; }
+        .res-rubata { border-color: var(--red); background: rgba(220, 38, 38, 0.15); }
+        .res-sicura { border-color: var(--green); background: rgba(22, 163, 74, 0.15); }
+
+        /* INBOX & SWIPE */
+        #inbox-screen, #chat-overlay { 
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: var(--bg); z-index: 2000; padding: 20px; box-sizing: border-box; 
+        }
+        
+        .swipe-container { position: relative; overflow: hidden; margin-bottom: 12px; border-radius: 15px; background: var(--red); }
+        .inbox-item { 
+            background: var(--card); padding: 18px; display: flex; align-items: center; 
+            gap: 15px; border: 1px solid #334155; position: relative; z-index: 2; 
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+        }
+        .delete-action { 
+            position: absolute; right: 0; top: 0; height: 100%; width: 90px; 
+            background: var(--red); color: white; display: flex; 
+            align-items: center; justify-content: center; font-weight: bold; z-index: 1; 
+        }
 
         #snapshot { display: none; }
     </style>
@@ -76,14 +126,15 @@
 <body>
 
     <div id="splash-screen">
-        <img src="IMG_7046.png" alt="SlabCheck Logo" onerror="this.style.display='none'">
-        <h1 id="splash-text" style="color: var(--accent); letter-spacing: 4px; margin-top: 20px; font-size: 1.5rem;">SLABCHECK</h1>
+        <img src="logo.png" alt="SlabCheck" onerror="this.src='https://via.placeholder.com/150/38bdf8/ffffff?text=SC'">
+        <h1 style="color: var(--accent); letter-spacing: 5px; margin-top: 20px; font-size: 1.6rem;">SLABCHECK</h1>
+        <p style="color: #64748b; font-size: 0.8rem; margin-top: 5px;">Powered by AiGrading</p>
     </div>
 
     <div id="main-content">
         <div id="header">
-            <img src="IMG_7046.png" alt="Logo" class="logo-header" onerror="this.parentElement.innerHTML+='<span style=\'color:var(--accent);font-weight:bold\'>SLABCHECK</span>'">
-            <button onclick="openInbox()" style="background:var(--card); color:var(--accent); border:1px solid var(--accent); padding:6px 16px; border-radius:20px; font-size:0.8rem; width: auto;">💬 Messaggi</button>
+            <img src="logo.png" alt="Logo" class="logo-header" onerror="this.style.display='none'">
+            <button onclick="openInbox()" style="background:rgba(56, 189, 248, 0.1); color:var(--accent); border:1px solid var(--accent); padding:8px 18px; border-radius:25px; font-size:0.8rem; width: auto; margin:0;">💬 Messaggi</button>
         </div>
 
         <div id="camera-container">
@@ -92,14 +143,14 @@
         </div>
         
         <div class="panel">
-            <button class="btn-scan" onclick="takeSnapshot()">📷 SCANSIONA CARTA</button>
-            <input type="text" id="manual-serial" placeholder="Inserisci seriale manuale...">
-            <button onclick="checkManual()" style="background:#475569; color:white;">VERIFICA ORA</button>
-            <button class="btn-victim" onclick="toggleVictimForm()">⚠️ SEGNALA CARTA RUBATA</button>
+            <button class="btn-scan" onclick="takeSnapshot()">📷 SCANSIONA SERIALE</button>
+            <input type="text" id="manual-serial" placeholder="Inserimento manuale...">
+            <button onclick="checkManual()" style="background:#334155; color:white;">VERIFICA</button>
+            <button class="btn-victim" onclick="toggleVictimForm()">⚠️ SEGNALA FURTO</button>
         </div>
 
-        <div id="victim-form" class="panel" style="display:none; border-color:var(--red);">
-            <h3 style="color:var(--red); margin-top:0;">Modulo Furto</h3>
+        <div id="victim-form" class="panel" style="display:none; border: 1px solid var(--red);">
+            <h3 style="color:var(--red); margin-top:0;">Segnala Scomparsa</h3>
             <select id="v-company">
                 <option value="" disabled selected>Casa di Gradazione</option>
                 <option value="PSA">PSA</option>
@@ -108,31 +159,31 @@
                 <option value="SGC">SGC</option>
                 <option value="CGC">CGC</option>
             </select>
-            <input type="text" id="v-serial" placeholder="Numero seriale slab">
-            <button onclick="addStolenCard()" style="background:var(--red); color:white;">REGISTRA NEL DATABASE</button>
-            <button onclick="toggleVictimForm()" style="background:none; color:#94a3b8; font-size:0.8rem;">Annulla</button>
+            <input type="text" id="v-serial" placeholder="Numero seriale">
+            <button onclick="addStolenCard()" style="background:var(--red); color:white;">REGISTRA ORA</button>
+            <button onclick="toggleVictimForm()" style="background:none; color:#94a3b8;">Annulla</button>
         </div>
         
         <div id="result-box" class="panel">
-            <h3 id="status" style="margin:0;">In attesa...</h3>
-            <p id="details" style="font-size:0.9rem; opacity:0.8;">Inquadra il codice o scrivilo sopra</p>
+            <h3 id="status" style="margin:0;">Scanner Pronto</h3>
+            <p id="details" style="font-size:0.9rem; opacity:0.8;">Inquadra o inserisci il seriale per iniziare</p>
             <button id="btn-open-chat" style="display:none; background:var(--orange); color:white; margin-top:15px;" onclick="openChat()">💬 CONTATTA PROPRIETARIO</button>
         </div>
     </div>
 
     <div id="inbox-screen">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 25px;">
             <h2 style="color:var(--accent); margin:0;">Inbox</h2>
-            <button onclick="closeInbox()" style="width:auto; background:none; border: 1px solid #334155; color:white; padding: 5px 15px;">Chiudi</button>
+            <button onclick="closeInbox()" style="width:auto; background:var(--card); border:1px solid #334155; color:white; padding: 8px 20px; border-radius:10px;">Chiudi</button>
         </div>
         <div id="inbox-list">
-            <div class="swipe-container" id="chat-1">
-                <div class="delete-action" onclick="deleteMessage('chat-1')">ELIMINA</div>
-                <div class="inbox-item" ontouchstart="handleStart(event)" ontouchmove="handleMove(event)" ontouchend="handleEnd(event)">
-                    <div style="width:45px; height:45px; background:var(--accent); border-radius:50%; flex-shrink:0;"></div>
+            <div class="swipe-container" id="chat-welcome">
+                <div class="delete-action" onclick="deleteMessage('chat-welcome')">ELIMINA</div>
+                <div class="inbox-item" ontouchstart="hStart(event)" ontouchmove="hMove(event)" ontouchend="hEnd(event)">
+                    <div style="width:45px; height:45px; background:var(--accent); border-radius:50%; display:flex; align-items:center; justify-content:center; color:black; font-weight:bold;">S</div>
                     <div style="flex-grow:1; text-align:left; padding-left:10px;" onclick="openChat()">
-                        <h4 style="margin:0;">Info SlabCheck</h4>
-                        <p style="margin:0; font-size:0.75rem; color:#94a3b8;">Scorri a sinistra per eliminare</p>
+                        <h4 style="margin:0;">Benvenuto su SlabCheck</h4>
+                        <p style="margin:0; font-size:0.75rem; color:#94a3b8;">Scorri a sinistra per gestire le chat</p>
                     </div>
                 </div>
             </div>
@@ -140,15 +191,15 @@
     </div>
 
     <div id="chat-overlay">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h3 id="chat-title" style="color:var(--accent); margin:0;">Chat Sicura</h3>
-            <button onclick="closeChat()" style="background:#334155; color:white; border-radius:50%; width:35px; height:35px; border:none; font-size:1.2rem;">&times;</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 id="chat-title" style="color:var(--accent); margin:0;">Chat Anonima</h3>
+            <button onclick="closeChat()" style="background:#334155; color:white; border-radius:50%; width:35px; height:35px; border:none;">&times;</button>
         </div>
-        <div id="chat-window">
-            <div class="msg owner">Sistema: Sei connesso in forma anonima.</div>
+        <div id="chat-window" style="height:65vh; overflow-y:auto; background:#020617; border-radius:20px; padding:15px; display:flex; flex-direction:column; gap:10px;">
+            <div class="msg owner" style="background:#334155; padding:12px; border-radius:12px; align-self:flex-start;">Sistema: Connessione crittografata stabilita.</div>
         </div>
-        <div style="display:flex; gap:8px;">
-            <input type="text" id="chat-input" placeholder="Scrivi un messaggio..." style="margin:0; flex-grow:1;">
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <input type="text" id="chat-input" placeholder="Messaggio..." style="margin:0; flex-grow:1;">
             <button onclick="sendMessage()" style="background:var(--accent); color:black; width:auto; padding:0 20px; margin:0;">Invia</button>
         </div>
     </div>
@@ -156,26 +207,30 @@
     <canvas id="snapshot"></canvas>
 
     <script>
-        // Gestione Splash Screen
+        // Gestione Splash Screen e Caricamento
         window.addEventListener('load', () => {
             setTimeout(() => {
                 const splash = document.getElementById('splash-screen');
                 const main = document.getElementById('main-content');
                 splash.classList.add('splash-hidden');
-                setTimeout(() => main.classList.add('content-visible'), 200);
-            }, 2200);
+                setTimeout(() => main.classList.add('content-visible'), 300);
+            }, 2400);
         });
 
         const video = document.getElementById('camera');
         const canvas = document.getElementById('snapshot');
         const statusText = document.getElementById('status');
         const detailsText = document.getElementById('details');
+        const resultBox = document.getElementById('result-box');
         const btnChatTrigger = document.getElementById('btn-open-chat');
         const chatWindow = document.getElementById('chat-window');
 
         let BLACKLIST = [{ serial: "47281093", company: "PSA", note: "Rubata a Lucca Comics" }];
 
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(s => video.srcObject = s);
+        // Camera init
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+            .then(s => video.srcObject = s)
+            .catch(err => statusText.innerText = "Camera non disponibile");
 
         function toggleVictimForm() {
             const f = document.getElementById('victim-form');
@@ -186,10 +241,10 @@
             const s = document.getElementById('v-serial').value.trim();
             const c = document.getElementById('v-company').value;
             if(s && c) { 
-                BLACKLIST.push({ serial: s, company: c, note: "Segnalata da te" }); 
-                alert("Registrata con successo!"); 
+                BLACKLIST.push({ serial: s, company: c, note: "Segnalata dall'utente" }); 
+                alert("Database aggiornato con il seriale " + s); 
                 toggleVictimForm(); 
-            } else { alert("Compila tutti i campi!"); }
+            } else { alert("Inserisci Casa e Seriale!"); }
         }
 
         async function takeSnapshot() {
@@ -201,24 +256,21 @@
                 const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
                 let found = text.match(/\b\d{5,12}\b/);
                 if (found) checkDatabase(found[0]);
-                else statusText.innerText = "Non letto. Riprova";
-            } catch (e) { statusText.innerText = "Errore Camera"; }
+                else statusText.innerText = "Riprova (testo non chiaro)";
+            } catch (e) { statusText.innerText = "Errore scanner"; }
         }
 
         function checkDatabase(serial) {
             const match = BLACKLIST.find(item => item.serial === serial);
-            const box = document.getElementById('result-box');
             if (match) {
-                statusText.innerText = `🚨 CARTA RUBATA!`;
-                detailsText.innerText = `[${match.company}] Seriale: ${serial} - ${match.note}`;
-                box.style.background = "rgba(220, 38, 38, 0.4)";
-                box.style.borderColor = "var(--red)";
+                statusText.innerText = `🚨 RUBATA!`;
+                detailsText.innerText = `[${match.company}] Seriale: ${serial} | ${match.note}`;
+                resultBox.className = "panel res-rubata";
                 btnChatTrigger.style.display = "block";
             } else {
-                statusText.innerText = `✅ CARTA SICURA`;
-                detailsText.innerText = `Seriale #${serial}: Nessuna segnalazione trovata.`;
-                box.style.background = "rgba(22, 163, 74, 0.4)";
-                box.style.borderColor = "var(--green)";
+                statusText.innerText = `✅ SICURA`;
+                detailsText.innerText = `Seriale #${serial} non risulta rubato.`;
+                resultBox.className = "panel res-sicura";
                 btnChatTrigger.style.display = "none";
             }
         }
@@ -228,35 +280,41 @@
             if (val) checkDatabase(val);
         }
 
-        // SWIPE TO DELETE
-        let startX = 0; let currentT = 0; let activeI = null;
-        function handleStart(e) { startX = e.touches[0].clientX; activeI = e.currentTarget; activeI.style.transition = 'none'; }
-        function handleMove(e) {
-            let diff = e.touches[0].clientX - startX;
-            if (diff < 0 && diff > -110) { currentT = diff; activeI.style.transform = `translateX(${currentT}px)`; }
+        // SWIPE TO DELETE LOGIC
+        let sX = 0; let curT = 0; let actI = null;
+        function hStart(e) { sX = e.touches[0].clientX; actI = e.currentTarget; actI.style.transition = 'none'; }
+        function hMove(e) {
+            let diff = e.touches[0].clientX - sX;
+            if (diff < 0 && diff > -110) { curT = diff; actI.style.transform = `translateX(${curT}px)`; }
         }
-        function handleEnd() {
-            activeI.style.transition = 'transform 0.3s ease-out';
-            if (currentT < -60) activeI.style.transform = `translateX(-85px)`;
-            else activeI.style.transform = `translateX(0px)`;
-            currentT = 0;
+        function hEnd() {
+            actI.style.transition = 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+            if (curT < -60) actI.style.transform = `translateX(-90px)`;
+            else actI.style.transform = `translateX(0px)`;
+            curT = 0;
         }
 
         function deleteMessage(id) {
             const el = document.getElementById(id);
-            el.style.opacity = '0'; el.style.transform = 'scale(0.9)';
-            setTimeout(() => el.remove(), 300);
+            el.style.opacity = '0'; el.style.transform = 'translateX(-100%)';
+            setTimeout(() => el.remove(), 400);
         }
 
         function openInbox() { document.getElementById('inbox-screen').style.display = 'block'; }
         function closeInbox() { document.getElementById('inbox-screen').style.display = 'none'; }
         function openChat() { document.getElementById('chat-overlay').style.display = 'block'; }
         function closeChat() { document.getElementById('chat-overlay').style.display = 'none'; }
+        
         function sendMessage() {
             const input = document.getElementById('chat-input');
             if (input.value) {
-                const m = document.createElement('div'); m.className = 'msg me'; m.innerText = input.value;
-                chatWindow.appendChild(m); input.value = ""; chatWindow.scrollTop = chatWindow.scrollHeight;
+                const m = document.createElement('div');
+                m.className = 'msg me';
+                m.style.cssText = "background:var(--accent); color:black; padding:12px; border-radius:12px; align-self:flex-end;";
+                m.innerText = input.value;
+                chatWindow.appendChild(m);
+                input.value = "";
+                chatWindow.scrollTop = chatWindow.scrollHeight;
             }
         }
     </script>
