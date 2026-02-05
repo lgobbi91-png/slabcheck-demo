@@ -3,227 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SlabCheck - Stealth Edition</title>
+    <title>SlabCheck - Smart Scanner</title>
     
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="logo.png">
-
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --red: #dc2626; --green: #16a34a; --orange: #f59e0b; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding-bottom: 30px; overflow-x: hidden; }
+        :root { --bg: #020617; --card: #1e293b; --accent: #38bdf8; --red: #dc2626; --green: #16a34a; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; overflow-x: hidden; }
 
         /* Splash Screen */
         #splash-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #020617;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 9999; transition: transform 0.8s cubic-bezier(0.77, 0, 0.175, 1);
+            z-index: 9999; transition: transform 0.8s ease-in-out;
         }
         .splash-hidden { transform: translateY(-100%); }
 
-        /* Layout */
-        #main-content { opacity: 0; transition: opacity 0.6s; }
-        .visible { opacity: 1 !important; }
-        #header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: #020617; border-bottom: 1px solid rgba(56,189,248,0.2); }
-        .logo-header { height: 35px; }
+        /* HEADER */
+        #header { padding: 15px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; }
 
-        /* AREA STATUS (Al posto del video) */
-        #status-area { 
-            height: 20vh; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            background: linear-gradient(180deg, #020617 0%, var(--bg) 100%);
-            border-bottom: 1px solid #334155;
+        /* AREA SCANNER (IL MIRINO) */
+        #scanner-viewport {
+            width: 100%;
+            height: 0; /* Chiuso di base */
+            overflow: hidden;
+            background: #000;
+            transition: height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
         }
-        .scanner-icon {
-            font-size: 3rem;
-            margin-bottom: 10px;
-            animation: pulse-icon 2s infinite;
+        .viewport-open { height: 35vh !important; }
+
+        #camera-preview { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* Cornice di puntamento */
+        #guide-frame {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%; height: 40%;
+            border: 2px solid var(--accent);
+            border-radius: 10px;
+            box-shadow: 0 0 0 1000px rgba(0,0,0,0.6);
+            display: flex; align-items: center; justify-content: center;
         }
-        @keyframes pulse-icon { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
 
-        /* Elementi Nascosti (Telecamera invisibile) */
-        #camera { width: 1px; height: 1px; opacity: 0; position: absolute; pointer-events: none; }
-        #snapshot { display: none; }
+        /* UI */
+        .panel { padding: 20px; background: #0f172a; margin: 15px; border-radius: 20px; }
+        button { padding: 16px; border-radius: 12px; border: none; font-weight: bold; width: 100%; cursor: pointer; font-size: 1rem; margin-bottom: 10px; }
+        .btn-main { background: var(--accent); color: #000; }
+        
+        #status-label { color: var(--accent); font-size: 0.8rem; letter-spacing: 1px; margin-bottom: 10px; display: block; }
+        
+        #result-box { margin: 15px; padding: 20px; border-radius: 20px; display: none; border: 1px solid transparent; }
+        .stolen { display: block !important; border-color: var(--red); background: rgba(220, 38, 38, 0.1); }
+        .safe { display: block !important; border-color: var(--green); background: rgba(22, 163, 74, 0.1); }
 
-        /* UI Elements */
-        .panel { padding: 18px; background: var(--card); margin: 15px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); }
-        input, select { padding: 12px; border-radius: 10px; border: 1px solid #334155; width: 90%; background: #020617; color: white; margin-bottom: 10px; font-size: 1rem; }
-        button { padding: 15px; border-radius: 12px; border: none; font-weight: bold; width: 100%; margin-bottom: 10px; cursor: pointer; transition: 0.2s; }
-        button:active { transform: scale(0.97); }
-        .btn-scan { background: var(--accent); color: #020617; box-shadow: 0 4px 15px rgba(56,189,248,0.2); }
-        .btn-red { background: transparent; border: 1px solid var(--red); color: var(--red); }
-
-        #result-box { transition: 0.4s; border: 2px solid transparent; }
-        .stolen { border-color: var(--red); background: rgba(220,38,38,0.15); }
-        .safe { border-color: var(--green); background: rgba(22,163,74,0.15); }
-
-        /* Inbox & Swipe */
-        #inbox-screen, #chat-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 2000; padding: 20px; box-sizing: border-box; }
-        .swipe-container { position: relative; overflow: hidden; margin-bottom: 10px; border-radius: 15px; background: var(--red); }
-        .inbox-item { background: var(--card); padding: 18px; display: flex; align-items: center; gap: 12px; position: relative; z-index: 2; transition: transform 0.3s ease-out; border: 1px solid #334155; }
-        .delete-btn { position: absolute; right: 0; top: 0; height: 100%; width: 85px; background: var(--red); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; z-index: 1; }
+        #inbox-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 2000; padding: 20px; box-sizing: border-box; }
+        canvas { display: none; }
     </style>
 </head>
 <body>
 
     <div id="splash-screen">
-        <img src="logo.png" alt="Logo" onerror="this.style.display='none'">
-        <h1 style="color: var(--accent); letter-spacing: 5px;">SLABCHECK</h1>
+        <h1 style="color:var(--accent); letter-spacing: 5px;">SLABCHECK</h1>
     </div>
 
-    <div id="main-content">
-        <div id="header">
-            <img src="logo.png" alt="Logo" class="logo-header" onerror="this.style.display='none'">
-            <button onclick="openInbox()" style="width:auto; background:rgba(56,189,248,0.1); color:var(--accent); border:1px solid var(--accent); padding:8px 15px; border-radius:20px; margin:0;">💬 Messaggi</button>
-        </div>
+    <div id="header">
+        <span style="font-weight: bold; color: var(--accent);">SLABCHECK</span>
+        <button onclick="openInbox()" style="width:auto; padding:8px 15px; background:var(--card); color:white; margin:0; font-size:0.7rem;">Inbox</button>
+    </div>
 
-        <div id="status-area">
-            <div class="scanner-icon">🔍</div>
-            <div id="main-status" style="font-weight: bold; color: var(--accent);">PRONTO ALL'USO</div>
+    <div id="scanner-viewport">
+        <video id="camera-preview" autoplay playsinline></video>
+        <div id="guide-frame">
+            <div style="color:white; font-size:0.6rem; background:rgba(0,0,0,0.5); padding:2px 8px;">ALLINEA SERIALE</div>
         </div>
+    </div>
 
-        <video id="camera" autoplay playsinline></video>
+    <div class="panel">
+        <span id="status-label">SISTEMA PRONTO</span>
+        <button class="btn-main" id="scan-btn" onclick="toggleScanner()">📷 AVVIA SCANSIONE</button>
+        <input type="text" id="manual-in" placeholder="Inserisci manuale..." style="width:85%; padding:12px; border-radius:10px; background:#000; border:1px solid #1e293b; color:white; margin-top:10px;">
+    </div>
 
-        <div class="panel">
-            <button class="btn-scan" onclick="takeInstantPhoto()">📷 SCANSIONA ORA</button>
-            <input type="text" id="manual-serial" placeholder="Seriale manuale...">
-            <button onclick="checkManual()" style="background:#334155; color:white;">VERIFICA</button>
-            <button class="btn-red" onclick="toggleForm()">⚠️ SEGNALA FURTO</button>
-        </div>
-
-        <div id="victim-form" class="panel" style="display:none; border:1px solid var(--red);">
-            <select id="v-company">
-                <option value="PSA">PSA</option>
-                <option value="GRAAD">GRAAD</option>
-                <option value="BGS">BGS</option>
-            </select>
-            <input type="text" id="v-serial" placeholder="Numero seriale">
-            <button onclick="saveStolen()" style="background:var(--red); color:white;">REGISTRA</button>
-        </div>
-
-        <div id="result-box" class="panel">
-            <h3 id="res-title" style="margin:0;">Risultato</h3>
-            <p id="res-details" style="font-size:0.8rem; opacity:0.7;">I dati appariranno qui</p>
-            <button id="chat-btn" style="display:none; background:var(--orange); color:white; margin-top:10px;" onclick="startChat()">💬 CONTATTA PROPRIETARIO</button>
-        </div>
+    <div id="result-box">
+        <h2 id="res-title" style="margin:0;"></h2>
+        <p id="res-text" style="opacity:0.8;"></p>
     </div>
 
     <canvas id="snapshot"></canvas>
 
     <script>
-        let BLACKLIST = JSON.parse(localStorage.getItem('slab_blacklist')) || [{ serial: "47281093", company: "PSA", note: "Esempio" }];
-        let cameraStream = null;
+        let isScanning = false;
+        let stream = null;
+        let BLACKLIST = JSON.parse(localStorage.getItem('slab_blacklist')) || [{serial:"47281093", company:"PSA"}];
 
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                document.getElementById('splash-screen').classList.add('splash-hidden');
-                document.getElementById('main-content').classList.add('visible');
-            }, 2000);
-            renderInbox();
-        });
+        window.onload = () => {
+            setTimeout(() => document.getElementById('splash-screen').classList.add('splash-hidden'), 2000);
+        };
 
-        // --- SCATTO ISTANTANEO (SENZA ANTEPRIMA VIDEO) ---
-        async function takeInstantPhoto() {
-            const statusLabel = document.getElementById('main-status');
-            statusLabel.innerText = "ATTIVAZIONE...";
-            
-            try {
-                if (!cameraStream) {
-                    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                    document.getElementById('camera').srcObject = cameraStream;
+        async function toggleScanner() {
+            const viewport = document.getElementById('scanner-viewport');
+            const btn = document.getElementById('scan-btn');
+            const status = document.getElementById('status-label');
+
+            if (!isScanning) {
+                // APRI MIRINO
+                try {
+                    status.innerText = "ACCENSIONE CAMERA...";
+                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                    document.getElementById('camera-preview').srcObject = stream;
+                    viewport.classList.add('viewport-open');
+                    btn.innerText = "⚡ ANALIZZA ORA";
+                    isScanning = true;
+                    status.innerText = "INQUADRA IL CODICE";
+                } catch (e) {
+                    alert("Errore camera");
                 }
+            } else {
+                // ESEGUI OCR E CHIUDI
+                status.innerText = "ANALISI IN CORSO...";
+                const canvas = document.getElementById('snapshot');
+                const video = document.getElementById('camera-preview');
+                const ctx = canvas.getContext('2d');
                 
-                statusLabel.innerText = "SCATTO IN CORSO...";
-                
-                // Aspettiamo un attimo per l'auto-focus della camera nascosta
-                setTimeout(async () => {
-                    const canvas = document.getElementById('snapshot');
-                    const video = document.getElementById('camera');
-                    const ctx = canvas.getContext('2d');
-                    
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    ctx.drawImage(video, 0, 0);
-                    
-                    statusLabel.innerText = "ANALISI DATI...";
-                    
-                    const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
-                    const found = text.match(/\b\d{5,12}\b/);
-                    
-                    if (found) {
-                        checkCard(found[0]);
-                        statusLabel.innerText = "CARTA RICONOSCIUTA";
-                    } else {
-                        statusLabel.innerText = "NON LETTO. RIPROVA";
-                    }
-                    
-                    // Spegniamo la camera subito dopo lo scatto
-                    stopCamera();
-                }, 1000);
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
 
-            } catch (err) {
-                statusLabel.innerText = "ERRORE CAMERA";
-                console.error(err);
+                const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
+                const found = text.match(/\b\d{5,12}\b/);
+
+                if (found) {
+                    checkCard(found[0]);
+                    closeScanner();
+                } else {
+                    status.innerText = "NON LETTO. RIPROVA O ALLINEA MEGLIO";
+                }
             }
         }
 
-        function stopCamera() {
-            if (cameraStream) {
-                cameraStream.getTracks().forEach(track => track.stop());
-                cameraStream = null;
+        function closeScanner() {
+            const viewport = document.getElementById('scanner-viewport');
+            const btn = document.getElementById('scan-btn');
+            const status = document.getElementById('status-label');
+
+            viewport.classList.remove('viewport-open');
+            if (stream) {
+                stream.getTracks().forEach(t => t.stop());
+                stream = null;
             }
+            btn.innerText = "📷 AVVIA SCANSIONE";
+            isScanning = false;
+            status.innerText = "SCANSIONE COMPLETATA";
         }
 
         function checkCard(serial) {
-            const match = BLACKLIST.find(b => b.serial === serial);
             const box = document.getElementById('result-box');
-            const btn = document.getElementById('chat-btn');
+            const title = document.getElementById('res-title');
+            const text = document.getElementById('res-text');
+            const match = BLACKLIST.find(b => b.serial === serial);
+
             if (match) {
-                document.getElementById('res-title').innerText = "🚨 RUBATA!";
-                document.getElementById('res-details').innerText = `[${match.company}] #${serial}`;
-                box.className = "panel stolen";
-                btn.style.display = "block";
+                box.className = "stolen";
+                title.innerText = "🚨 RUBATA!";
+                text.innerText = `Carta ${match.company} con seriale #${serial}`;
             } else {
-                document.getElementById('res-title').innerText = "✅ SICURA";
-                document.getElementById('res-details').innerText = `Seriale #${serial} regolare.`;
-                box.className = "panel safe";
-                btn.style.display = "none";
+                box.className = "safe";
+                title.innerText = "✅ SICURA";
+                text.innerText = `Il seriale #${serial} è regolare.`;
             }
         }
 
-        // UI & Storage
-        function toggleForm() { const f = document.getElementById('victim-form'); f.style.display = f.style.display === 'block' ? 'none' : 'block'; }
-        function saveStolen() {
-            const s = document.getElementById('v-serial').value.trim();
-            const c = document.getElementById('v-company').value;
-            if(s) {
-                BLACKLIST.push({ serial: s, company: c, note: "Segnalata" });
-                localStorage.setItem('slab_blacklist', JSON.stringify(BLACKLIST));
-                renderInbox(); toggleForm(); alert("Salvata!");
-            }
-        }
-        function checkManual() { const val = document.getElementById('manual-serial').value.trim(); if(val) checkCard(val); }
-        function renderInbox() {
-            const list = document.getElementById('inbox-list');
-            list.innerHTML = "";
-            BLACKLIST.forEach((item, index) => {
-                list.innerHTML += `<div class="swipe-container" id="chat-${index}"><div class="delete-btn" onclick="deleteItem(${index})">ELIMINA</div><div class="inbox-item" ontouchstart="hStart(event)" ontouchmove="hMove(event)" ontouchend="hEnd(event)"><div>${item.company[0]}</div><div style="flex-grow:1; text-align:left; padding-left:10px;"><h4>${item.company} #${item.serial}</h4></div></div></div>`;
-            });
-        }
-        function deleteItem(index) { BLACKLIST.splice(index, 1); localStorage.setItem('slab_blacklist', JSON.stringify(BLACKLIST)); renderInbox(); }
-        function openInbox() { document.getElementById('inbox-screen').style.display = 'block'; renderInbox(); }
-        function closeInbox() { document.getElementById('inbox-screen').style.display = 'none'; }
-        
-        // Swipe Logic semplificata
-        let sX = 0, curT = 0, actI = null;
-        function hStart(e) { sX = e.touches[0].clientX; actI = e.currentTarget; actI.style.transition = 'none'; }
-        function hMove(e) { let d = e.touches[0].clientX - sX; if (d < 0 && d > -100) { curT = d; actI.style.transform = `translateX(${curT}px)`; } }
-        function hEnd() { actI.style.transition = 'transform 0.3s'; if (curT < -60) actI.style.transform = `translateX(-85px)`; else actI.style.transform = `translateX(0px)`; curT = 0; }
+        function openInbox() { document.getElementById('inbox-screen').style.display = 'block'; }
     </script>
 </body>
 </html>
